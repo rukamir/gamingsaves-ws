@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"log"
 	"net/http"
 
@@ -38,7 +39,18 @@ func main() {
 
 	r.Get("/v1/deals/csv", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("CSV Called")
-		render.JSON(w, r, "CSV unavailable")
+		w.Header().Add("Content-Type", "text/csv")
+		w.Header().Add("Content-disposition", "attachment; filename=dealstest.csv")
+
+		wcsv := csv.NewWriter(w)
+		gameList := GetAllDeals()
+
+		wcsv.Write([]string{"ID", "title"})
+
+		for _, game := range gameList {
+			wcsv.Write([]string{game.ID, game.Title})
+		}
+		wcsv.Flush()
 	})
 
 	http.ListenAndServe(":3000", r)
