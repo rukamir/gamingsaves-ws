@@ -9,8 +9,15 @@ import (
 
 // Game Data struct for handling data in DB
 type Game struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Platform  string `json:"platform"`
+	ListPrice string `json:"listprice"`
+	MSRP      string `json:"msrp"`
+	Discount  string `json:"discount"`
+	URL       string `json:"url"`
+	Source    string `json:"source"`
+	Date      string `json:"date"`
 }
 
 // GameCount holds game count per platform
@@ -43,20 +50,17 @@ func GetPlatformCounts() []GameCount {
 // GetAllDeals returns [some struct] for all REST data
 func GetAllDeals() []Game {
 	var gameList []Game
-	rows, err := DB.Query("SELECT id, title from deals;")
+	rows, err := DB.Query("SELECT id, title, platform, list_price, msrp_price, discount, url, source, created from deals;")
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var (
-			id    string
-			title string
-		)
-		if err := rows.Scan(&id, &title); err != nil {
+		var game Game
+		if err := rows.Scan(&game.ID, &game.Title, &game.Platform, &game.ListPrice, &game.MSRP, &game.Discount, &game.URL, &game.Source, &game.Date); err != nil {
 			log.Fatal(err)
 		}
-		game := Game{ID: id, Title: title}
+		// game := Game{ID: id, Title: title}
 		gameList = append(gameList, game)
 
 		if err != nil {

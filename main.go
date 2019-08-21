@@ -45,10 +45,11 @@ func main() {
 		wcsv := csv.NewWriter(w)
 		gameList := GetAllDeals()
 
-		wcsv.Write([]string{"ID", "title"})
+		wcsv.Write([]string{"ID", "title", "platform", "list",
+			"msrp", "discount", "product_url", "date"})
 
 		for _, game := range gameList {
-			wcsv.Write([]string{game.ID, game.Title})
+			wcsv.Write([]string{game.ID, game.Title, game.Platform, game.ListPrice, game.MSRP, game.Discount, game.URL, game.Date})
 		}
 		wcsv.Flush()
 	})
