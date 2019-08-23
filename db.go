@@ -98,16 +98,16 @@ func setWithMax(val int, max int) int {
 }
 
 func setWithLimits(val int, min int, max int) int {
-	var correctedVal int
-	correctedVal = setWithMin(val, min)
-	correctedVal = setWithMax(val, max)
+	correctedVal := val
+	correctedVal = setWithMin(correctedVal, min)
+	correctedVal = setWithMax(correctedVal, max)
 	return correctedVal
 }
 
 // GetDealsQuery query db
-func GetDealsQuery(order string, limit int, page int, minprice int, maxprice int, platforms string, mindiscount int) []Game {
+func GetDealsQuery(order string, sortby string, limit int, page int, minprice int, maxprice int, platforms string, mindiscount int) []Game {
 	var gameList []Game
-	limit = setWithLimits(limit, 1, 100)
+	limit = setWithLimits(limit, 1, 10)
 	page = setWithMin(page, 1)
 	mindiscount = setWithMax(mindiscount, 100)
 	startIndex := (page - 1) * limit

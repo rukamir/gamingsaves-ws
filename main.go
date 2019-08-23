@@ -34,6 +34,7 @@ func main() {
 		// platty := r.URL.Query().Get("min")
 		// log.Printf("platforms converts to ", platty)
 		order := r.URL.Query().Get("order")
+		sortby := r.URL.Query().Get("sortby")
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 		minprice, _ := strconv.Atoi(r.URL.Query().Get("minprice"))
@@ -41,7 +42,7 @@ func main() {
 		mindiscount, _ := strconv.Atoi(r.URL.Query().Get("mindiscount"))
 		platforms := r.URL.Query().Get("platforms")
 
-		gameList := GetDealsQuery(order, limit, page, minprice, maxprice, platforms, mindiscount)
+		gameList := GetDealsQuery(order, sortby, limit, page, minprice, maxprice, platforms, mindiscount)
 
 		render.JSON(w, r, gameList)
 	})
