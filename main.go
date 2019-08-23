@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
@@ -13,6 +14,7 @@ func main() {
 	if err != nil {
 		panic(err.Error()) // Just for example purpose. You should use proper error handling instead of panic
 	}
+	SetUpDB()
 	err = DB.Ping()
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
@@ -27,7 +29,20 @@ func main() {
 
 	r.Get("/v1/deals", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Deals Called")
-		gameList := GetAllDeals()
+		// minnn, _ := strconv.Atoi(r.URL.Query().Get("min"))
+		// log.Printf("min converts to ", minnn)
+		// platty := r.URL.Query().Get("min")
+		// log.Printf("platforms converts to ", platty)
+		order := r.URL.Query().Get("order")
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+		minprice, _ := strconv.Atoi(r.URL.Query().Get("minprice"))
+		maxprice, _ := strconv.Atoi(r.URL.Query().Get("maxprice"))
+		mindiscount, _ := strconv.Atoi(r.URL.Query().Get("mindiscount"))
+		platforms := r.URL.Query().Get("platforms")
+
+		gameList := GetDealsQuery(order, limit, page, minprice, maxprice, platforms, mindiscount)
+
 		render.JSON(w, r, gameList)
 	})
 
@@ -46,10 +61,11 @@ func main() {
 		gameList := GetAllDeals()
 
 		wcsv.Write([]string{"ID", "title", "platform", "list",
-			"msrp", "discount", "product_url", "date"})
+			"msrp", "discount", "release", "product_url", "date"})
 
 		for _, game := range gameList {
-			wcsv.Write([]string{game.ID, game.Title, game.Platform, game.ListPrice, game.MSRP, game.Discount, game.URL, game.Date})
+			wcsv.Write([]string{game.ID, game.Title, game.Platform, game.ListPrice,
+				game.MSRP, game.Discount, game.Release, game.URL, game.Date})
 		}
 		wcsv.Flush()
 	})
