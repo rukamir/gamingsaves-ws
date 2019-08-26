@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 )
 
@@ -22,6 +23,20 @@ func main() {
 
 	r := chi.NewRouter()
 
+	// Basic CORS
+	// for more ideas, see: https://developer.github.com/v3/#cross-origin-resource-sharing
+	cors := cors.New(cors.Options{
+		// AllowedOrigins: []string{"https://foo.com"}, // Use this to allow specific origin hosts
+		AllowedOrigins: []string{"*"},
+		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
+		AllowedMethods:   []string{"GET"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	})
+	r.Use(cors.Handler)
+
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Root Called")
 		w.Write([]byte("welcome"))
@@ -29,10 +44,6 @@ func main() {
 
 	r.Get("/v1/deals", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Deals Called")
-		// minnn, _ := strconv.Atoi(r.URL.Query().Get("min"))
-		// log.Printf("min converts to ", minnn)
-		// platty := r.URL.Query().Get("min")
-		// log.Printf("platforms converts to ", platty)
 		order := r.URL.Query().Get("order")
 		sortby := r.URL.Query().Get("sortby")
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -42,9 +53,9 @@ func main() {
 		mindiscount, _ := strconv.Atoi(r.URL.Query().Get("mindiscount"))
 		platforms := r.URL.Query().Get("platforms")
 
-		gameList := GetDealsQuery(order, sortby, limit, page, minprice, maxprice, platforms, mindiscount)
+		queryresult := GetDealsQuery(order, sortby, limit, page, minprice, maxprice, platforms, mindiscount)
 
-		render.JSON(w, r, gameList)
+		render.JSON(w, r, queryresult)
 	})
 
 	r.Get("/v1/deals/count", func(w http.ResponseWriter, r *http.Request) {

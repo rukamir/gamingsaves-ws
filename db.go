@@ -26,6 +26,12 @@ type Game struct {
 	Date        string `json:"date"`
 }
 
+// GameQuery holds list of games and addtional meta data
+type GameQuery struct {
+	Deals []Game `json:"deals"`
+	Total int    `json:"total"`
+}
+
 // GameCount holds game count per platform
 type GameCount struct {
 	Platform string `json:"platform"`
@@ -42,7 +48,7 @@ func SetUpDB() {
 
 // GetPlatformCounts returns a list of numnber of games per platform
 func GetPlatformCounts() []GameCount {
-	rows, err := DB.Query("SELECT count(*), platform from deals;")
+	rows, err := DB.Query("SELECT count(*), platform FROM deals GROUP BY platform;")
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
@@ -66,6 +72,7 @@ func GetAllDeals() []Game {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 	defer rows.Close()
+
 	for rows.Next() {
 		var game Game
 		if err := rows.Scan(&game.ID, &game.Title, &game.Platform, &game.ListPrice,
@@ -73,12 +80,12 @@ func GetAllDeals() []Game {
 			&game.URL, &game.Source, &game.Date); err != nil {
 			log.Fatal(err)
 		}
-		// game := Game{ID: id, Title: title}
-		gameList = append(gameList, game)
 
 		if err != nil {
 			panic(err.Error()) // proper error handling instead of panic in your app
 		}
+
+		gameList = append(gameList, game)
 	}
 	return gameList
 }
@@ -105,9 +112,9 @@ func setWithLimits(val int, min int, max int) int {
 }
 
 // GetDealsQuery query db
-func GetDealsQuery(order string, sortby string, limit int, page int, minprice int, maxprice int, platforms string, mindiscount int) []Game {
+func GetDealsQuery(order string, sortby string, limit int, page int, minprice int, maxprice int, platforms string, mindiscount int) GameQuery {
 	var gameList []Game
-	limit = setWithLimits(limit, 1, 10)
+	limit = setWithLimits(limit, 1, 120)
 	page = setWithMin(page, 1)
 	mindiscount = setWithMax(mindiscount, 100)
 	startIndex := (page - 1) * limit
@@ -116,61 +123,97 @@ func GetDealsQuery(order string, sortby string, limit int, page int, minprice in
 	completequery := "SELECT id, title, platform, list_price, msrp_price, discount, `release`, `desc`, url, thumbnail_key, rating, `source`, updated FROM deals"
 
 	// WHERE clauses
+	var whereclause string
+	var wherevalues []interface{}
 	if minprice != 0 {
 		needsAnd = true
-		completequery += " WHERE list_price >= ? "
-		queryValues = append(queryValues, strconv.Itoa(minprice))
+		whereclause += " WHERE list_price >= ? "
+		wherevalues = append(wherevalues, strconv.Itoa(minprice))
 	}
 
 	if maxprice != 0 {
 		if needsAnd {
-			completequery += " AND "
+			whereclause += " AND "
 		} else {
-			completequery += " WHERE "
+			whereclause += " WHERE "
 			needsAnd = true
 		}
-		completequery += " list_price <= ? "
-		queryValues = append(queryValues, strconv.Itoa(maxprice))
+		whereclause += " list_price <= ? "
+		wherevalues = append(wherevalues, strconv.Itoa(maxprice))
 	}
 
 	if mindiscount != 0 {
 		if needsAnd {
-			completequery += " AND "
+			whereclause += " AND "
 		} else {
-			completequery += " WHERE "
+			whereclause += " WHERE "
 			needsAnd = true
 		}
-		completequery += " discount >= ? "
-		queryValues = append(queryValues, strconv.Itoa(mindiscount))
+		whereclause += " discount >= ? "
+		wherevalues = append(wherevalues, strconv.Itoa(mindiscount))
 	}
 
+	log.Printf("Listing platforms", platforms)
 	if platforms != "" {
 		if needsAnd {
-			completequery += " AND "
+			whereclause += " AND "
 		} else {
-			completequery += " WHERE "
+			whereclause += " WHERE "
 			needsAnd = true
 		}
-		completequery += " platform in ("
+		whereclause += " platform in ("
 
 		strplatlist := strings.Split(platforms, ",")
 		var tokens []string
 		var platlist []interface{}
-		//tokens = strings.Repeat("?", len(platlist)).Split()
-		for platform := range strplatlist {
+
+		for _, plat := range strplatlist {
 			tokens = append(tokens, "?")
-			platlist = append(platlist, platform)
+			platlist = append(platlist, plat)
 		}
-		completequery += strings.Join(tokens, ",") + ")"
-		queryValues = append(queryValues, platlist...)
+		whereclause += strings.Join(tokens, ",") + ")"
+		wherevalues = append(wherevalues, platlist...)
+	}
+	completequery += whereclause
+	queryValues = append(queryValues, wherevalues...)
+
+	// Order
+	if sortby != "" {
+		var sortColumn string
+		switch sortby {
+		case "title":
+			sortColumn = " title "
+		case "price":
+			sortColumn = " list_price "
+		case "discount":
+			sortColumn = " discount "
+		case "release":
+			sortColumn = " release "
+		case "platform":
+			sortColumn = " platform "
+		default:
+			sortColumn = " title "
+		}
+
+		switch order {
+		case "a":
+			order = " ASC "
+		case "d":
+			order = " DESC "
+		default:
+			order = " ASC "
+		}
+		completequery += " ORDER BY " + sortColumn + order
 	}
 
+	// Limit
 	if page != 0 && limit != 0 {
 		queryValues = append(queryValues, strconv.Itoa(startIndex))
 		queryValues = append(queryValues, strconv.Itoa(limit))
 		completequery += " LIMIT ?, ?"
 	}
 	completequery += ";"
+	log.Printf(completequery)
 
 	log.Printf(completequery)
 	rows, err := DB.Query(completequery, queryValues...)
@@ -184,12 +227,18 @@ func GetDealsQuery(order string, sortby string, limit int, page int, minprice in
 			log.Fatal(err)
 		}
 
-		gameList = append(gameList, game)
-
 		if err != nil {
 			panic(err.Error()) // proper error handling instead of panic in your app
 		}
-	}
-	return gameList
 
+		gameList = append(gameList, game)
+	}
+	// todo
+	// get total count and wrap it in a object that has gameList and count
+	// break out the WHERE clause for this
+	var total int
+	log.Print("SELECT count(*) FROM deals" + whereclause + ";")
+	totalres := DB.QueryRow("SELECT count(*) FROM deals"+whereclause+";", wherevalues...)
+	totalres.Scan(&total)
+	return GameQuery{Deals: gameList, Total: total}
 }
