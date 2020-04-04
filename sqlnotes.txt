@@ -1,0 +1,77 @@
+[200~-- https://stackoverflow.com/questions/2129693/using-limit-within-group-by-to-get-n-results-per-group
+-- Get Top 5 games by metacritic score for each genre
+SELECT
+  game.id, genre.*, game.platform, metacritic.score
+FROM
+  deal
+  LEFT JOIN game ON deal.id = game.id
+  RIGHT JOIN genre ON game.title = genre.title
+  INNER JOIN (
+    select
+      genre.genre,
+      GROUP_CONCAT(
+        game.id
+        ORDER BY
+          metacritic.score DESC
+      ) grouped_id
+    FROM
+      genre
+      LEFT JOIN game ON genre.title = game.title
+      INNER JOIN metacritic ON game.title = metacritic.title
+      AND game.platform = metacritic.platform
+    GROUP BY
+      genre.genre
+  ) group_max ON genre.genre = group_max.genre
+  AND FIND_IN_SET(game.id, grouped_id) BETWEEN 1 AND 5
+  LEFT JOIN metacritic ON game.title = metacritic.title
+  AND game.platform = metacritic.platform
+GROUP BY
+  genre.genre,
+  game.title,
+  game.id
+ORDER BY
+  genre.genre,
+  metacritic.score DESC;
+
+
+-- Get Top 5 games by metacritic score for group of genres
+SELECT DISTINCT
+  game.id, genre.title, game.platform, metacritic.score
+FROM
+  deal
+  LEFT JOIN game ON deal.id = game.id
+  RIGHT JOIN genre ON game.title = genre.title AND genre.genre in ('Action','Adventure', 'Arcade', 'Multiplayer')
+  LEFT JOIN metacritic ON game.title = metacritic.title
+  AND game.platform = metacritic.platform
+GROUP BY
+  genre.genre,
+  game.title,
+  game.id
+ORDER BY
+  metacritic.score DESC
+LIMIT 5;
+
+-- Get Top 5 of given category
+SELECT DISTINCT
+  game.id, genre.title, game.platform, metacritic.score, genre.genre
+FROM
+  deal
+  LEFT JOIN game ON deal.id = game.id
+  INNER JOIN genre ON game.title = genre.title AND genre.genre = 'Action'
+  LEFT JOIN metacritic ON game.title = metacritic.title
+  AND game.platform = metacritic.platform
+ORDER BY
+  metacritic.score DESC
+LIMIT 10;
+
+-- Top 5 of given platform
+SELECT
+  game.id, game.title, game.platform, metacritic.score
+FROM
+  deal
+  LEFT JOIN game ON deal.id = game.id AND game.platform = 'Nintendo Switch'
+  LEFT JOIN metacritic ON game.title = metacritic.title
+  AND game.platform = metacritic.platform
+ORDER BY
+  metacritic.score DESC
+LIMIT 10;
