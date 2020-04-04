@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -13,6 +14,10 @@ var stmtGetTopGenreDeals *sql.Stmt
 var stmtGetTopPlatformDeals *sql.Stmt
 var stmtGetAllGenre *sql.Stmt
 var stmtGetAllPlatforms *sql.Stmt
+var stmtGetGameProfile *sql.Stmt
+var stmtGetGenreByGameID *sql.Stmt
+var stmtGetGenreByGameTitle *sql.Stmt
+var stmtGetPriceHistLast12MonthsByID *sql.Stmt
 
 // SetUpDB config DB
 func SetUpDB() {
@@ -54,10 +59,102 @@ func SetUpDB() {
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
+
+	stmtGetGameProfile, err = DB.Prepare("SELECT game.`id`, game.title, game.platform, `desc`, rating, `release`, msrp, current_price, pub, dev, metacritic.score, url " +
+		"FROM game " +
+		"LEFT JOIN metacritic ON game.title = metacritic.title " +
+		"LEFT JOIN (SELECT `id`, `list` current_price FROM game.price_hist WHERE `id` = ? ORDER BY `date` DESC LIMIT 1) AS recent_price ON game.id = recent_price.id " +
+		"WHERE game.`id` = ?")
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+
+	stmtGetGenreByGameTitle, err = DB.Prepare("SELECT genre from genre WHERE title = ?")
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+
+	stmtGetPriceHistLast12MonthsByID, err = DB.Prepare("SELECT date, list FROM game.price_hist WHERE `id` = ? AND `date` > DATE_SUB(now(), INTERVAL 12 MONTH) ORDER BY `date` DESC")
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
 }
+
+// CloseDB notes
 func CloseDB() {
 	defer stmtGetTopGenreDeals.Close()
 	defer stmtGetTopPlatformDeals.Close()
+}
+
+// GetGenreByTitle notes
+func GetGenreByTitle(title string) []string {
+	var genres []string
+	var genre string
+	rows, err := stmtGetGenreByGameTitle.Query(title)
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	for rows.Next() {
+		if err := rows.Scan(&genre); err != nil {
+			log.Fatal(err)
+		}
+		genres = append(genres, genre)
+	}
+
+	return genres
+}
+
+// GetPriceHistLast12MonthsByID notes
+func GetPriceHistLast12MonthsByID(id string) []PriceHistoryDay {
+	var completeHist []PriceHistoryDay
+	var priceDay PriceHistoryDay
+	rows, err := stmtGetPriceHistLast12MonthsByID.Query(id)
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	for rows.Next() {
+		if err := rows.Scan(&priceDay.Date, &priceDay.ListPrice); err != nil {
+			log.Fatal(err)
+		}
+		completeHist = append(completeHist, priceDay)
+	}
+
+	return completeHist
+}
+
+// GetGameProfile notes
+func GetGameProfile(id string) GameProfile {
+	var profile GameProfile
+	row := stmtGetGameProfile.QueryRow(id, id)
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+
+	switch err := row.Scan(
+		&profile.ID,
+		&profile.Title,
+		&profile.Platform,
+		&profile.Desc,
+		&profile.Rating,
+		&profile.Release,
+		&profile.MSRP,
+		&profile.ListPrice,
+		&profile.Publisher,
+		&profile.Developer,
+		&profile.Score,
+		&profile.URL); err {
+	case sql.ErrNoRows:
+		fmt.Println("No rows were returned!")
+	case nil:
+		fmt.Println("worked")
+	default:
+		panic(err)
+	}
+
+	profile.Genres = GetGenreByTitle(profile.Title)
+	profile.PriceHist = GetPriceHistLast12MonthsByID(profile.ID)
+
+	return profile
 }
 
 // GetTopDealsByGenre fillout
@@ -69,7 +166,7 @@ func GetTopDealsByGenre(genre string, limit int) []GameListEntry {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 	for rows.Next() {
-		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Rating); err != nil {
+		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score); err != nil {
 			log.Fatal(err)
 		}
 		genreDealList = append(genreDealList, gameEntry)
@@ -79,7 +176,6 @@ func GetTopDealsByGenre(genre string, limit int) []GameListEntry {
 
 // GetTopDealsByPlatform fillout
 func GetTopDealsByPlatform(platform string, limit int) []GameListEntry {
-	log.Printf("getting top plats")
 	var genreDealList []GameListEntry
 	var gameEntry GameListEntry
 	rows, err := stmtGetTopPlatformDeals.Query(platform, limit)
@@ -87,7 +183,7 @@ func GetTopDealsByPlatform(platform string, limit int) []GameListEntry {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 	for rows.Next() {
-		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Rating); err != nil {
+		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score); err != nil {
 			log.Fatal(err)
 		}
 		genreDealList = append(genreDealList, gameEntry)
@@ -116,7 +212,6 @@ func GetAllPlatforms() []string {
 
 // GetAllGenres notes
 func GetAllGenres() []string {
-	log.Printf("getting all genres")
 	var genreList []string
 	var genre string
 	rows, err := stmtGetAllGenre.Query()

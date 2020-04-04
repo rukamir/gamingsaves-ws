@@ -21,14 +21,16 @@ type GameProfile struct {
 	Title     string            `json:"title"`
 	Platform  NullString        `json:"platform"`
 	Desc      NullString        `json:"desc"`
-	Rating    NullInt64         `json:"rating"`
+	Rating    NullString        `json:"rating"`
 	Release   NullTime          `json:"release"`
 	MSRP      float32           `json:"msrp"`
 	ListPrice float32           `json:"list"`
+	Score     int               `json:"score"`
 	Publisher NullString        `json:"pub"`
 	Developer NullString        `json:"dev"`
 	Genres    []string          `json:"genres"`
 	PriceHist []PriceHistoryDay `json:"history"`
+	URL       string            `json:"url"`
 }
 
 // GameListEntry is a short profile of a game used to display a game in a list
@@ -38,7 +40,7 @@ type GameListEntry struct {
 	Platform  NullString `json:"platform"`
 	MSRP      float32    `json:"msrp"`
 	ListPrice float32    `json:"list"`
-	Rating    NullInt64  `json:"rating"`
+	Score     NullInt64  `json:"score"`
 }
 
 // GenreGameList hosts a genre label and the corresponding games

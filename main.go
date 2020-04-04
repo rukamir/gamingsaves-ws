@@ -19,6 +19,7 @@ func main() {
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
+	defer CloseDB()
 
 	r := chi.NewRouter()
 
@@ -41,7 +42,11 @@ func main() {
 		GetTopDealsByGenre("Action", 5)
 		w.Write([]byte("welcome"))
 	})
-	r.Get("/genre", func(w http.ResponseWriter, r *http.Request) {
+
+	r.Get("/game/{id}", func(w http.ResponseWriter, r *http.Request) {
+		render.JSON(w, r, GetGameProfile(chi.URLParam(r, "id")))
+	})
+	r.Get("/top/genre/all", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Genre Called")
 		genreList := GetAllGenres()
 		var topGamesPerGenreList []GenreGameList
@@ -55,7 +60,8 @@ func main() {
 
 		render.JSON(w, r, topGamesPerGenreList)
 	})
-	r.Get("/platforms", func(w http.ResponseWriter, r *http.Request) {
+
+	r.Get("/top/platform/all", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Top Platforms called")
 		var topGamesPerPlatform []GenreGameList
 		var platEntry GenreGameList
