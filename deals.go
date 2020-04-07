@@ -15,6 +15,13 @@ type PriceHistoryDay struct {
 	ListPrice float32   `json:"list"`
 }
 
+// SimpleGame notes
+type SimpleGame struct {
+	ID       string     `json:"id"`
+	Title    string     `json:"title"`
+	Platform NullString `json:"platform"`
+}
+
 // GameProfile is the full details for a game
 type GameProfile struct {
 	ID        string            `json:"id"`
@@ -43,9 +50,9 @@ type GameListEntry struct {
 	Score     NullInt64  `json:"score"`
 }
 
-// GenreGameList hosts a genre label and the corresponding games
-type GenreGameList struct {
-	Genre    string          `json:"genre"`
+// CategoryGameList hosts a genre label and the corresponding games
+type CategoryGameList struct {
+	Category string          `json:"category"`
 	GameList []GameListEntry `json:"games"`
 }
 

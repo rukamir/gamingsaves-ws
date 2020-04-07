@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/render"
 
@@ -44,16 +45,36 @@ func main() {
 	})
 
 	r.Get("/game/{id}", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Game called")
 		render.JSON(w, r, GetGameProfile(chi.URLParam(r, "id")))
 	})
+
+	r.Get("/simple-search", func(w http.ResponseWriter, r *http.Request) {
+		term := r.URL.Query().Get("value")
+		list := GetGamesByTextSearch(term)
+		// render.JSON(w, r, GetGameProfile(chi.URLParam(r, "id")))
+		render.JSON(w, r, list)
+	})
+
+	r.Get("/top/genre/multi", func(w http.ResponseWriter, r *http.Request) {
+		genresRaw := r.URL.Query().Get("values")
+		searchList := strings.Split(genresRaw, ",")
+		for _, v := range searchList {
+			log.Printf("%s", v)
+		}
+		list := GetGamesByGenreList(searchList)
+		// render.JSON(w, r, GetGameProfile(chi.URLParam(r, "id")))
+		render.JSON(w, r, list)
+	})
+
 	r.Get("/top/genre/all", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Genre Called")
 		genreList := GetAllGenres()
-		var topGamesPerGenreList []GenreGameList
-		var gListEntry GenreGameList
+		var topGamesPerGenreList []CategoryGameList
+		var gListEntry CategoryGameList
 
 		for _, val := range genreList {
-			gListEntry.Genre = val
+			gListEntry.Category = val
 			gListEntry.GameList = GetTopDealsByGenre(val, 10)
 			topGamesPerGenreList = append(topGamesPerGenreList, gListEntry)
 		}
@@ -63,11 +84,11 @@ func main() {
 
 	r.Get("/top/platform/all", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Top Platforms called")
-		var topGamesPerPlatform []GenreGameList
-		var platEntry GenreGameList
+		var topGamesPerPlatform []CategoryGameList
+		var platEntry CategoryGameList
 		platList := GetAllPlatforms()
 		for _, val := range platList {
-			platEntry.Genre = val
+			platEntry.Category = val
 			platEntry.GameList = GetTopDealsByPlatform(val, 10)
 			topGamesPerPlatform = append(topGamesPerPlatform, platEntry)
 		}
@@ -115,5 +136,6 @@ func main() {
 	// 	wcsv.Flush()
 	// })
 
-	http.ListenAndServe(":3000", r)
+	log.Printf("Starting server")
+	http.ListenAndServe(":2000", r)
 }

@@ -18,6 +18,8 @@ var stmtGetGameProfile *sql.Stmt
 var stmtGetGenreByGameID *sql.Stmt
 var stmtGetGenreByGameTitle *sql.Stmt
 var stmtGetPriceHistLast12MonthsByID *sql.Stmt
+var stmtGetGameByTitleDesc *sql.Stmt
+var stmtGetGamesByMultipleGenre *sql.Stmt
 
 // SetUpDB config DB
 func SetUpDB() {
@@ -78,12 +80,89 @@ func SetUpDB() {
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
+
+	stmtGetGameByTitleDesc, err = DB.Prepare(
+		"SELECT id, title, platform FROM game WHERE MATCH (`title`,`desc`) AGAINST (?)")
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+
+	stmtGetGamesByMultipleGenre, err = DB.Prepare(
+		"SELECT DISTINCT " +
+			"game.id, genre.title, game.platform, metacritic.score " +
+			"FROM " +
+			"deal " +
+			"LEFT JOIN game ON deal.id = game.id " +
+			"RIGHT JOIN genre ON game.title = genre.title AND genre.genre in ('Action','Adventure', 'Arcade', 'Multiplayer') " +
+			"LEFT JOIN metacritic ON game.title = metacritic.title " +
+			"AND game.platform = metacritic.platform " +
+			"GROUP BY " +
+			"genre.genre, " +
+			"game.title, " +
+			"game.id " +
+			"ORDER BY " +
+			"metacritic.score DESC " +
+			"LIMIT 5")
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+
 }
 
 // CloseDB notes
 func CloseDB() {
 	defer stmtGetTopGenreDeals.Close()
 	defer stmtGetTopPlatformDeals.Close()
+}
+
+// GetGamesByGenreList notes
+func GetGamesByGenreList(criteriaList []string) []GameListEntry {
+	var games []GameListEntry
+	var gameEntry GameListEntry
+
+	// build the query string
+	// https://groups.google.com/forum/#!msg/golang-nuts/vHbg09g7s2I/RKU7XsO25SIJ
+	var params []interface{}
+	sql := "SELECT DISTINCT " +
+		"game.id, genre.title, game.platform, metacritic.score " +
+		"FROM " +
+		"deal " +
+		"LEFT JOIN game ON deal.id = game.id " +
+		"RIGHT JOIN genre ON game.title = genre.title AND genre.genre IN ( %s ) " +
+		"LEFT JOIN metacritic ON game.title = metacritic.title " +
+		"AND game.platform = metacritic.platform " +
+		"GROUP BY " +
+		"genre.genre, " +
+		"game.title, " +
+		"game.id " +
+		"ORDER BY " +
+		"metacritic.score DESC " +
+		"LIMIT 10"
+	var sqlIn string
+	for p := range criteriaList {
+		log.Printf("loop")
+		params = append(params, p)
+		if sqlIn != "" {
+			sqlIn += ", "
+		}
+		sqlIn += "?"
+	}
+	sql = fmt.Sprintf(sql, sqlIn)
+	log.Printf("%v", params)
+
+	rows, err := DB.Query(sql, params...)
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score); err != nil {
+			log.Fatal(err)
+		}
+		games = append(games, gameEntry)
+	}
+
+	return games
 }
 
 // GetGenreByTitle notes
@@ -94,6 +173,7 @@ func GetGenreByTitle(title string) []string {
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
+	defer rows.Close()
 	for rows.Next() {
 		if err := rows.Scan(&genre); err != nil {
 			log.Fatal(err)
@@ -112,6 +192,7 @@ func GetPriceHistLast12MonthsByID(id string) []PriceHistoryDay {
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
+	defer rows.Close()
 	for rows.Next() {
 		if err := rows.Scan(&priceDay.Date, &priceDay.ListPrice); err != nil {
 			log.Fatal(err)
@@ -165,6 +246,7 @@ func GetTopDealsByGenre(genre string, limit int) []GameListEntry {
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
+	defer rows.Close()
 	for rows.Next() {
 		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score); err != nil {
 			log.Fatal(err)
@@ -182,6 +264,7 @@ func GetTopDealsByPlatform(platform string, limit int) []GameListEntry {
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
+	defer rows.Close()
 	for rows.Next() {
 		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score); err != nil {
 			log.Fatal(err)
@@ -199,6 +282,7 @@ func GetAllPlatforms() []string {
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
+	defer rows.Close()
 	for rows.Next() {
 		if err := rows.Scan(&plat); err != nil {
 			log.Fatal(err)
@@ -218,6 +302,7 @@ func GetAllGenres() []string {
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
+	defer rows.Close()
 	for rows.Next() {
 		if err := rows.Scan(&genre); err != nil {
 			log.Fatal(err)
@@ -226,4 +311,24 @@ func GetAllGenres() []string {
 	}
 
 	return genreList
+}
+
+// GetGamesByTextSearch notes
+func GetGamesByTextSearch(value string) []SimpleGame {
+	var games []SimpleGame
+	var game SimpleGame
+	rows, err := stmtGetGameByTitleDesc.Query(value)
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err := rows.Scan(&game.ID, &game.Title, &game.Platform); err != nil {
+			log.Fatal(err)
+		}
+		games = append(games, game)
+	}
+
+	return games
+
 }
