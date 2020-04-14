@@ -82,6 +82,12 @@ func main() {
 		render.JSON(w, r, topGamesPerGenreList)
 	})
 
+	r.Get("/top/platform", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Top Platforms called")
+		val := r.URL.Query().Get("value")
+		render.JSON(w, r, GetTopDealsByPlatform(val, 10))
+	})
+
 	r.Get("/top/platform/all", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Top Platforms called")
 		var topGamesPerPlatform []CategoryGameList

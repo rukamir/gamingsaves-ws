@@ -62,7 +62,7 @@ func SetUpDB() {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 
-	stmtGetGameProfile, err = DB.Prepare("SELECT game.`id`, game.title, game.platform, `desc`, rating, `release`, msrp, current_price, pub, dev, metacritic.score, url " +
+	stmtGetGameProfile, err = DB.Prepare("SELECT game.`id`, game.title, game.platform, `desc`, rating, `release`, msrp, current_price, pub, dev, metacritic.score, url, src " +
 		"FROM game " +
 		"LEFT JOIN metacritic ON game.title = metacritic.title " +
 		"LEFT JOIN (SELECT `id`, `list` current_price FROM game.price_hist WHERE `id` = ? ORDER BY `date` DESC LIMIT 1) AS recent_price ON game.id = recent_price.id " +
@@ -223,7 +223,8 @@ func GetGameProfile(id string) GameProfile {
 		&profile.Publisher,
 		&profile.Developer,
 		&profile.Score,
-		&profile.URL); err {
+		&profile.URL,
+		&profile.Source); err {
 	case sql.ErrNoRows:
 		fmt.Println("No rows were returned!")
 	case nil:

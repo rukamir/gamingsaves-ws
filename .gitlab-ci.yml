@@ -17,21 +17,24 @@ before_script:
   - cd $GOPATH/src/$REPO_NAME
 
 stages:
-  - test
   - build
   - deploy
-
-format:
-  stage: test
-  script:
-    - go fmt $(go list ./... | grep -v /vendor/)
-    - go vet $(go list ./... | grep -v /vendor/)
-    - go test -race $(go list ./... | grep -v /vendor/)
 
 compile:
   stage: build
   script:
-    - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/mybinary
+    - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/gamingsaves-ws
   artifacts:
     paths:
-      - mybinary
+      - gamingsaves-ws
+
+deploy_prod:
+  stage: deploy
+    environment:
+      name: production
+    only:
+      - master
+    script:
+      - echo $SSH_KEY > ~/.ssh/id_rsa
+      - ssh-add ~/.ssh/id_rsa
+      - ssh jimmy@$PROD_ADDR ls
