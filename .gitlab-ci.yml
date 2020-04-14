@@ -36,6 +36,7 @@ deploy_prod:
   only:
     - master
   script:
+    - eval `ssh-agent -s`
     - ssh-add $SSH_KEY
     - ssh jimmy@$PROD_ADDR rm -f /home/jimmy/gamingsaves-ws
     - scp $CI_PROJECT_DIR/gamingsaves-ws  jimmy@$PROD_ADDR:/home/jimmy/gamingsaves-ws
