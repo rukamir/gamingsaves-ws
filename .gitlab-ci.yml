@@ -36,6 +36,7 @@ deploy_prod:
   only:
     - master
   script:
+    - chmod 600 $SSH_KEY
     - mkdir -p ~/.ssh
     - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
     - ssh -i $SSH_KEY jimmy@$PROD_ADDR rm -f /home/jimmy/gamingsaves-ws
