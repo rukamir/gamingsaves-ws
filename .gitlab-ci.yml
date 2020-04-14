@@ -36,6 +36,7 @@ deploy_prod:
   only:
     - master
   script:
+    - chmod 600 $SSH_KEY
     - eval `ssh-agent -s`
     - ssh-add $SSH_KEY
     - ssh jimmy@$PROD_ADDR rm -f /home/jimmy/gamingsaves-ws
