@@ -38,4 +38,7 @@ deploy_prod:
     - master
   script:
     - echo $SSH_KEY > ~/id_rsa
-    - ssh -i ~/id_rsa jimmy@$PROD_ADDR ls
+    - ssh -i ~/id_rsa jimmy@$PROD_ADDR rm $CI_PROJECT_DIR/gamingsaves-ws
+    - scp -i ~/id_rsa jimmy@$PROD_ADDR $CI_PROJECT_DIR/gamingsaves-ws ./gamingsaves-ws
+    - ssh -i ~/id_rsa jimmy@$PROD_ADDR chmod +x $CI_PROJECT_DIR/gamingsaves-ws
+    - exit 0
