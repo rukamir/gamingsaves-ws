@@ -40,6 +40,8 @@ deploy_prod:
     - mkdir -p ~/.ssh
     - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
     - ssh -i $SSH_KEY jimmy@$PROD_ADDR rm -f /home/jimmy/gamingsaves-ws
+    - ssh -i $SSH_KEY jimmy@$PROD_ADDR /home/jimmy/scripts/ws-stop.sh
     - scp -i $SSH_KEY $CI_PROJECT_DIR/gamingsaves-ws  jimmy@$PROD_ADDR:/home/jimmy/gamingsaves-ws
     - ssh -i $SSH_KEY jimmy@$PROD_ADDR chmod +x /home/jimmy/gamingsaves-ws
+    - ssh -i $SSH_KEY jimmy@$PROD_ADDR /home/jimmy/scripts/ws-start.sh
     - exit 0
