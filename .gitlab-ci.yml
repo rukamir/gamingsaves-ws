@@ -36,9 +36,11 @@ deploy_prod:
   only:
     - master
   script:
-    - chmod 600 $SSH_KEY
+    - 'which ssh-agent || ( apt-get install -qq openssh-client )'
     - eval `ssh-agent -s`
-    - ssh-add $SSH_KEY
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
     - ssh jimmy@$PROD_ADDR rm -f /home/jimmy/gamingsaves-ws
     - scp $CI_PROJECT_DIR/gamingsaves-ws  jimmy@$PROD_ADDR:/home/jimmy/gamingsaves-ws
     - ssh jimmy@$PROD_ADDR chmod +x /home/jimmy/gamingsaves-ws
