@@ -38,5 +38,4 @@ deploy_prod:
     - master
   script:
     - echo $SSH_KEY > ~/id_rsa
-    - ssh-add ~/id_rsa
-    - ssh jimmy@$PROD_ADDR ls
+    - ssh -i ~/id_rsa jimmy@$PROD_ADDR ls
