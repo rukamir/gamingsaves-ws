@@ -4,12 +4,18 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
+var dbAddress = os.Getenv("DB_ADDRESS")
+var dbUser = os.Getenv("DB_USER")
+var dbPass = os.Getenv("DB_PASS")
+var dbName = os.Getenv("DB_NAME")
+
 // DB object to interact with database
-var DB, err = sql.Open("mysql", "retriever:password@tcp(127.0.0.1:3306)/game?parseTime=true")
+var DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?parseTime=true", dbUser, dbPass, dbAddress, dbName))
 var stmtGetTopGenreDeals *sql.Stmt
 var stmtGetTopPlatformDeals *sql.Stmt
 var stmtGetAllGenre *sql.Stmt
