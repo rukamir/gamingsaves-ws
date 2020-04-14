@@ -36,7 +36,8 @@ deploy_prod:
   only:
     - master
   script:
-    - ssh -i $SSH_KEY -o “StrictHostKeyChecking=no” jimmy@$PROD_ADDR rm -f /home/jimmy/gamingsaves-ws
-    - scp -i $SSH_KEY -o “StrictHostKeyChecking=no” $CI_PROJECT_DIR/gamingsaves-ws  jimmy@$PROD_ADDR:/home/jimmy/gamingsaves-ws
-    - ssh -i $SSH_KEY -o “StrictHostKeyChecking=no” jimmy@$PROD_ADDR chmod +x /home/jimmy/gamingsaves-ws
+    - ssh-add $SSH_KEY
+    - ssh jimmy@$PROD_ADDR rm -f /home/jimmy/gamingsaves-ws
+    - scp $CI_PROJECT_DIR/gamingsaves-ws  jimmy@$PROD_ADDR:/home/jimmy/gamingsaves-ws
+    - ssh jimmy@$PROD_ADDR chmod +x /home/jimmy/gamingsaves-ws
     - exit 0
