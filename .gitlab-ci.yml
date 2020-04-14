@@ -23,6 +23,7 @@ stages:
 compile:
   stage: build
   script:
+    - go get -d -v ./...
     - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/gamingsaves-ws
   artifacts:
     paths:
