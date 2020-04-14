@@ -30,11 +30,12 @@ compile:
 
 deploy_prod:
   stage: deploy
-    environment:
-      name: production
-    only:
-      - master
-    script:
-      - echo $SSH_KEY > ~/.ssh/id_rsa
-      - ssh-add ~/.ssh/id_rsa
-      - ssh jimmy@$PROD_ADDR ls
+  environment:
+    name: production
+    url: https://api.gamingsaves.com
+  only:
+    - master
+  script:
+    - echo $SSH_KEY > ~/.ssh/id_rsa
+    - ssh-add ~/.ssh/id_rsa
+    - ssh jimmy@$PROD_ADDR ls
