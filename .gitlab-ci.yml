@@ -33,7 +33,6 @@ deploy_prod:
   stage: deploy
   environment:
     name: production
-    url: https://api.gamingsaves.com
   only:
     - master
   script:
