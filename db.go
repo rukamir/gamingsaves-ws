@@ -32,7 +32,7 @@ func SetUpDB() {
 	DB.SetMaxOpenConns(15)
 	stmtGetTopGenreDeals, err = DB.Prepare(
 		"SELECT DISTINCT " +
-			"game.id, genre.title, game.platform, metacritic.score " +
+			"game.id, genre.title, game.platform, metacritic.score, deal.list " +
 			"FROM deal " +
 			"LEFT JOIN game ON deal.id = game.id " +
 			"INNER JOIN genre ON game.title = genre.title AND genre.genre = ? " +
@@ -46,7 +46,7 @@ func SetUpDB() {
 	}
 
 	stmtGetTopPlatformDeals, err = DB.Prepare(
-		"SELECT game.id, game.title, game.platform, metacritic.score " +
+		"SELECT game.id, game.title, game.platform, metacritic.score, deal.list " +
 			"FROM deal " +
 			"INNER JOIN game ON deal.id = game.id AND game.platform = ? " +
 			"LEFT JOIN metacritic ON game.title = metacritic.title " +
@@ -255,7 +255,7 @@ func GetTopDealsByGenre(genre string, limit int) []GameListEntry {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score); err != nil {
+		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score, &gameEntry.ListPrice); err != nil {
 			log.Fatal(err)
 		}
 		genreDealList = append(genreDealList, gameEntry)
@@ -273,7 +273,7 @@ func GetTopDealsByPlatform(platform string, limit int) []GameListEntry {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score); err != nil {
+		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score, &gameEntry.ListPrice); err != nil {
 			log.Fatal(err)
 		}
 		genreDealList = append(genreDealList, gameEntry)

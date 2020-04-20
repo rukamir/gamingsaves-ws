@@ -43,5 +43,5 @@ deploy_prod:
     - ssh -i $SSH_KEY jimmy@$PROD_ADDR /home/jimmy/scripts/ws-stop.sh
     - scp -i $SSH_KEY $CI_PROJECT_DIR/gamingsaves-ws  jimmy@$PROD_ADDR:/home/jimmy/gamingsaves-ws
     - ssh -i $SSH_KEY jimmy@$PROD_ADDR chmod +x /home/jimmy/gamingsaves-ws
-    - ssh -i $SSH_KEY jimmy@$PROD_ADDR /home/jimmy/scripts/ws-start.sh
+    - ssh -i $SSH_KEY jimmy@$PROD_ADDR /home/jimmy/scripts/ws-start.sh &
     - exit 0

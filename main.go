@@ -67,6 +67,21 @@ func main() {
 		render.JSON(w, r, list)
 	})
 
+	r.Get("/top/genre/picks", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Genre Called")
+		genreList := []string{"Action", "Adventure", "Arcade", "Fighting", "First-Person", "Indie", "Platformer", "Racing", "Role-Playing", "Sports", "Strategy", "Puzzle"}
+		var topGamesPerGenreList []CategoryGameList
+		var gListEntry CategoryGameList
+
+		for _, val := range genreList {
+			gListEntry.Category = val
+			gListEntry.GameList = GetTopDealsByGenre(val, 10)
+			topGamesPerGenreList = append(topGamesPerGenreList, gListEntry)
+		}
+
+		render.JSON(w, r, topGamesPerGenreList)
+	})
+
 	r.Get("/top/genre/all", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Genre Called")
 		genreList := GetAllGenres()
@@ -83,9 +98,23 @@ func main() {
 	})
 
 	r.Get("/top/platform", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Top Platforms called")
+		log.Printf("Top Platforms called for platform")
 		val := r.URL.Query().Get("value")
 		render.JSON(w, r, GetTopDealsByPlatform(val, 10))
+	})
+
+	r.Get("/top/platform/modern", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Top Platforms called")
+		var topGamesPerPlatform []CategoryGameList
+		var platEntry CategoryGameList
+		platList := []string{"Nintendo Switch", "Xbox One", "PS4"}
+		for _, val := range platList {
+			platEntry.Category = val
+			platEntry.GameList = GetTopDealsByPlatform(val, 10)
+			topGamesPerPlatform = append(topGamesPerPlatform, platEntry)
+		}
+
+		render.JSON(w, r, topGamesPerPlatform)
 	})
 
 	r.Get("/top/platform/all", func(w http.ResponseWriter, r *http.Request) {
