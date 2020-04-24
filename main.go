@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/render"
@@ -98,9 +99,24 @@ func main() {
 	})
 
 	r.Get("/top/platform", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Top Platforms called for platform")
+		log.Printf("Top Games By Platform Under $$")
 		val := r.URL.Query().Get("value")
-		render.JSON(w, r, GetTopDealsByPlatform(val, 10))
+		listunder, _ := strconv.Atoi(r.URL.Query().Get("listunder"))
+		if listunder == 0 {
+			listunder = 1000
+		}
+
+		render.JSON(w, r, GetTopDealsByPlatform(val, listunder, 10))
+	})
+
+	r.Get("/top", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Top Games Under $$")
+		listunder, _ := strconv.Atoi(r.URL.Query().Get("under"))
+		if listunder == 0 {
+			listunder = 1000
+		}
+
+		render.JSON(w, r, GetTopDealsUnder(listunder, 10))
 	})
 
 	r.Get("/top/platform/modern", func(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +126,7 @@ func main() {
 		platList := []string{"Nintendo Switch", "Xbox One", "PS4"}
 		for _, val := range platList {
 			platEntry.Category = val
-			platEntry.GameList = GetTopDealsByPlatform(val, 10)
+			platEntry.GameList = GetTopDealsByPlatform(val, 10000, 10)
 			topGamesPerPlatform = append(topGamesPerPlatform, platEntry)
 		}
 
@@ -124,11 +140,25 @@ func main() {
 		platList := GetAllPlatforms()
 		for _, val := range platList {
 			platEntry.Category = val
-			platEntry.GameList = GetTopDealsByPlatform(val, 10)
+			platEntry.GameList = GetTopDealsByPlatform(val, 1000, 10)
 			topGamesPerPlatform = append(topGamesPerPlatform, platEntry)
 		}
 
 		render.JSON(w, r, topGamesPerPlatform)
+	})
+
+	r.Get("/popular", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Platforms Available called")
+		platList := GetAllPlatforms()
+
+		render.JSON(w, r, platList)
+	})
+
+	r.Get("/v1/platform/available", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Platforms Available called")
+		platList := GetAllPlatforms()
+
+		render.JSON(w, r, platList)
 	})
 
 	// r.Get("/v1/deals", func(w http.ResponseWriter, r *http.Request) {

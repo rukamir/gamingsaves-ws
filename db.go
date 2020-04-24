@@ -18,6 +18,7 @@ var dbName = os.Getenv("DB_NAME")
 var DB, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?parseTime=true", dbUser, dbPass, dbAddress, dbName))
 var stmtGetTopGenreDeals *sql.Stmt
 var stmtGetTopPlatformDeals *sql.Stmt
+var stmtGetTopDealsUnder *sql.Stmt
 var stmtGetAllGenre *sql.Stmt
 var stmtGetAllPlatforms *sql.Stmt
 var stmtGetGameProfile *sql.Stmt
@@ -49,6 +50,20 @@ func SetUpDB() {
 		"SELECT game.id, game.title, game.platform, metacritic.score, deal.list " +
 			"FROM deal " +
 			"INNER JOIN game ON deal.id = game.id AND game.platform = ? " +
+			"LEFT JOIN metacritic ON game.title = metacritic.title " +
+			"AND game.platform = metacritic.platform " +
+			"WHERE deal.list <= ? " +
+			"ORDER BY " +
+			"metacritic.score DESC " +
+			"LIMIT ?")
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+
+	stmtGetTopDealsUnder, err = DB.Prepare(
+		"SELECT game.id, game.title, game.platform, metacritic.score, deal.list " +
+			"FROM deal " +
+			"INNER JOIN game ON deal.id = game.id AND deal.list <= ? " +
 			"LEFT JOIN metacritic ON game.title = metacritic.title " +
 			"AND game.platform = metacritic.platform " +
 			"ORDER BY " +
@@ -264,10 +279,28 @@ func GetTopDealsByGenre(genre string, limit int) []GameListEntry {
 }
 
 // GetTopDealsByPlatform fillout
-func GetTopDealsByPlatform(platform string, limit int) []GameListEntry {
+func GetTopDealsByPlatform(platform string, underprice int, limit int) []GameListEntry {
 	var genreDealList []GameListEntry
 	var gameEntry GameListEntry
-	rows, err := stmtGetTopPlatformDeals.Query(platform, limit)
+	rows, err := stmtGetTopPlatformDeals.Query(platform, underprice, limit)
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score, &gameEntry.ListPrice); err != nil {
+			log.Fatal(err)
+		}
+		genreDealList = append(genreDealList, gameEntry)
+	}
+	return genreDealList
+}
+
+// GetTopDealsUnder fillout
+func GetTopDealsUnder(underprice int, limit int) []GameListEntry {
+	var genreDealList []GameListEntry
+	var gameEntry GameListEntry
+	rows, err := stmtGetTopDealsUnder.Query(underprice, limit)
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
