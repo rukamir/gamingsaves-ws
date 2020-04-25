@@ -48,7 +48,9 @@ type GameListEntry struct {
 	Platform  NullString `json:"platform"`
 	MSRP      float32    `json:"msrp"`
 	ListPrice float32    `json:"list"`
+	Discount  float32    `json:"discount"`
 	Score     NullInt64  `json:"score"`
+	Source    string     `json:"src"`
 }
 
 // CategoryGameList hosts a genre label and the corresponding games
