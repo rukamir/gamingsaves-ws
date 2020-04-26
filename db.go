@@ -31,6 +31,7 @@ var stmtSelectDealsMostViews *sql.Stmt
 var stmtSelectDealsByPlatformMostViews *sql.Stmt
 var stmtSelectDealsMostRecent *sql.Stmt
 var stmtSelectDealsByPlatformMostRecent *sql.Stmt
+var stmtUpdateViewCountByID *sql.Stmt
 
 // SetUpDB config DB
 func SetUpDB() {
@@ -186,6 +187,12 @@ func SetUpDB() {
 			"AND game.platform = metacritic.platform  " +
 			"ORDER BY " +
 			"game.release DESC LIMIT ?")
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+
+	stmtUpdateViewCountByID, err = DB.Prepare(
+		"INSERT IGNORE INTO game.view VALUES (?, 1, 1) ON DUPLICATE KEY UPDATE `month` = `month` + 1, `all` = `all` + 1")
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
@@ -508,4 +515,14 @@ func SelectDealsByPlatformMostRecent(platform string, limit int) []GameListEntry
 	}
 
 	return games
+}
+
+// UpdateViewCountByID notes
+func UpdateViewCountByID(id string) string {
+	_, err = stmtUpdateViewCountByID.Exec(id)
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+		return "error"
+	}
+	return ""
 }

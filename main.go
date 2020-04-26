@@ -45,6 +45,11 @@ func main() {
 		w.Write([]byte("welcome"))
 	})
 
+	r.Post("/v1/game/{id}/view", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Game View increment called")
+		render.JSON(w, r, UpdateViewCountByID(chi.URLParam(r, "id")))
+	})
+
 	r.Get("/v1/game/{id}", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Game called")
 		render.JSON(w, r, GetGameProfile(chi.URLParam(r, "id")))
@@ -237,12 +242,6 @@ func main() {
 	// 	queryresult := GetDealsQuery(order, sortby, limit, page, minprice, maxprice, platforms, mindiscount)
 
 	// 	render.JSON(w, r, queryresult)
-	// })
-
-	// r.Get("/v1/deals/count", func(w http.ResponseWriter, r *http.Request) {
-	// 	log.Printf("Count Called")
-	// 	platformList := GetPlatformCounts()
-	// 	render.JSON(w, r, platformList)
 	// })
 
 	// r.Get("/v1/deals/csv", func(w http.ResponseWriter, r *http.Request) {
