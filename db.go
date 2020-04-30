@@ -573,7 +573,7 @@ func GetDealsQuery(platform string, offset int, limit int) []GameListEntry {
 
 	queryValues = append(queryValues, strconv.Itoa(offset))
 	queryValues = append(queryValues, strconv.Itoa(limit))
-	completequery += " LIMIT ?, ?"
+	completequery += "ORDER BY title ASC LIMIT ?, ?"
 
 	rows, err := DB.Query(completequery, queryValues...)
 	if err != nil {
