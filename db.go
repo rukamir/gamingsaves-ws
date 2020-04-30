@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -522,7 +523,75 @@ func UpdateViewCountByID(id string) string {
 	_, err = stmtUpdateViewCountByID.Exec(id)
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
-		return "error"
 	}
 	return ""
+}
+
+func setWithMin(val int, min int) int {
+	if val >= min {
+		return val
+	}
+	return min
+}
+
+func setWithMax(val int, max int) int {
+	if val <= max {
+		return val
+	}
+	return max
+}
+
+func setWithLimits(val int, min int, max int) int {
+	correctedVal := val
+	correctedVal = setWithMin(correctedVal, min)
+	correctedVal = setWithMax(correctedVal, max)
+	return correctedVal
+}
+
+// GetDealsQuery note
+func GetDealsQuery(platform string, offset int, limit int) []GameListEntry {
+	var gameList []GameListEntry
+	var queryValues []interface{}
+	limit = setWithLimits(limit, 1, 120)
+	offset = setWithMin(offset, 1)
+	completequery := "SELECT game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src " +
+		"FROM deal " +
+		"INNER JOIN game ON deal.id = game.id " +
+		"LEFT JOIN metacritic ON game.title = metacritic.title " +
+		"AND game.platform = metacritic.platform "
+
+	// WHERE clauses
+	var whereclause string
+	var wherevalues []interface{}
+	if platform != "" {
+		whereclause += " WHERE game.platform = ? "
+		wherevalues = append(wherevalues, platform)
+	}
+
+	completequery += whereclause
+	queryValues = append(queryValues, wherevalues...)
+
+	queryValues = append(queryValues, strconv.Itoa(offset))
+	queryValues = append(queryValues, strconv.Itoa(limit))
+	completequery += " LIMIT ?, ?"
+
+	rows, err := DB.Query(completequery, queryValues...)
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var game GameListEntry
+
+		if err := rows.Scan(&game.ID, &game.Title, &game.Platform, &game.Score, &game.ListPrice, &game.MSRP, &game.Discount, &game.Source); err != nil {
+			log.Fatal(err)
+		}
+
+		if err != nil {
+			panic(err.Error()) // proper error handling instead of panic in your app
+		}
+
+		gameList = append(gameList, game)
+	}
+	return gameList
 }

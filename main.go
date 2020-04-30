@@ -228,6 +228,15 @@ func main() {
 		render.JSON(w, r, GetTopDealsByPlatform(platform, listunder, 10))
 	})
 
+	r.Get("/v1/deals", func(w http.ResponseWriter, r *http.Request) {
+		term := r.URL.Query().Get("platform")
+		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		list := GetDealsQuery(term, offset, limit)
+
+		render.JSON(w, r, list)
+	})
+
 	// r.Get("/v1/deals", func(w http.ResponseWriter, r *http.Request) {
 	// 	log.Printf("Deals Called")
 	// 	order := r.URL.Query().Get("order")
