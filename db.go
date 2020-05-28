@@ -39,26 +39,25 @@ func SetUpDB() {
 	DB.SetMaxOpenConns(15)
 	stmtGetTopGenreDeals, err = DB.Prepare(
 		"SELECT DISTINCT " +
-			"game.id, genre.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src " +
+			"game.id, genre.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src, game.lang, game.region " +
 			"FROM deal " +
 			"LEFT JOIN game ON deal.id = game.id " +
 			"INNER JOIN genre ON game.title = genre.title AND genre.genre = ? " +
-			"LEFT JOIN metacritic ON game.title = metacritic.title " +
-			"AND game.platform = metacritic.platform " +
-			"ORDER BY " +
-			"metacritic.score DESC " +
+			"LEFT JOIN metacritic ON game.title = metacritic.title AND game.platform = metacritic.platform " +
+			"WHERE game.lang = ? AND game.region = ? " +
+			"ORDER BY metacritic.score DESC " +
 			"LIMIT ?")
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 
 	stmtGetTopPlatformDeals, err = DB.Prepare(
-		"SELECT game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src " +
+		"SELECT game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src, game.lang, game.region " +
 			"FROM deal " +
 			"INNER JOIN game ON deal.id = game.id AND game.platform = ? " +
 			"LEFT JOIN metacritic ON game.title = metacritic.title " +
 			"AND game.platform = metacritic.platform " +
-			"WHERE deal.list <= ? " +
+			"WHERE deal.list <= ? and game.lang = ? AND game.region = ? " +
 			"ORDER BY " +
 			"metacritic.score DESC " +
 			"LIMIT ?")
@@ -67,11 +66,11 @@ func SetUpDB() {
 	}
 
 	stmtGetTopDealsUnder, err = DB.Prepare(
-		"SELECT game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src " +
+		"SELECT game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src, game.lang, game.region " +
 			"FROM deal " +
 			"INNER JOIN game ON deal.id = game.id AND deal.list <= ? " +
-			"LEFT JOIN metacritic ON game.title = metacritic.title " +
-			"AND game.platform = metacritic.platform " +
+			"LEFT JOIN metacritic ON game.title = metacritic.title AND game.platform = metacritic.platform " +
+			"WHERE game.lang = ? AND game.region = ? " +
 			"ORDER BY " +
 			"metacritic.score DESC " +
 			"LIMIT ?")
@@ -89,11 +88,12 @@ func SetUpDB() {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 
-	stmtGetGameProfile, err = DB.Prepare("SELECT game.`id`, game.title, game.platform, `desc`, rating, `release`, msrp, current_price, pub, dev, metacritic.score, url, src " +
-		"FROM game " +
-		"LEFT JOIN metacritic ON game.title = metacritic.title " +
-		"LEFT JOIN (SELECT `id`, `list` current_price FROM game.price_hist WHERE `id` = ? ORDER BY `date` DESC LIMIT 1) AS recent_price ON game.id = recent_price.id " +
-		"WHERE game.`id` = ?")
+	stmtGetGameProfile, err = DB.Prepare(
+		"SELECT game.`id`, game.title, game.platform, `desc`, rating, `release`, msrp, current_price, pub, dev, metacritic.score, url, src, lang, region " +
+			"FROM game " +
+			"LEFT JOIN metacritic ON game.title = metacritic.title " +
+			"LEFT JOIN (SELECT `id`, `list` current_price FROM game.price_hist WHERE `id` = ? ORDER BY `date` DESC LIMIT 1) AS recent_price ON game.id = recent_price.id " +
+			"WHERE game.`id` = ? AND game.region = ? AND game.lang = ?")
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
@@ -103,17 +103,19 @@ func SetUpDB() {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 
-	stmtGetPriceHistLast12MonthsByID, err = DB.Prepare("SELECT date, list FROM game.price_hist WHERE `id` = ? AND `date` > DATE_SUB(now(), INTERVAL 12 MONTH) ORDER BY `date` DESC")
+	stmtGetPriceHistLast12MonthsByID, err = DB.Prepare("SELECT date, list FROM game.price_hist WHERE `id` = ? AND price_hist.lang = ? AND price_hist.region = ? AND `date` > DATE_SUB(now(), INTERVAL 12 MONTH) ORDER BY `date` DESC")
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 
 	stmtGetGameByTitleDesc, err = DB.Prepare(
-		"SELECT id, title, platform FROM game WHERE MATCH (`title`,`desc`) AGAINST (?)")
+		"SELECT id, title, platform FROM game WHERE MATCH (`title`,`desc`) AGAINST (?) AND game.lang = ? AND game.region = ?")
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 
+	// this doesnt really work. work on later?
+	// and region and lang
 	stmtGetGamesByMultipleGenre, err = DB.Prepare(
 		"SELECT DISTINCT " +
 			"game.id, genre.title, game.platform, metacritic.score " +
@@ -121,8 +123,7 @@ func SetUpDB() {
 			"deal " +
 			"LEFT JOIN game ON deal.id = game.id " +
 			"RIGHT JOIN genre ON game.title = genre.title AND genre.genre in ('Action','Adventure', 'Arcade', 'Multiplayer') " +
-			"LEFT JOIN metacritic ON game.title = metacritic.title " +
-			"AND game.platform = metacritic.platform " +
+			"LEFT JOIN metacritic ON game.title = metacritic.title AND game.platform = metacritic.platform " +
 			"GROUP BY " +
 			"genre.genre, " +
 			"game.title, " +
@@ -134,19 +135,13 @@ func SetUpDB() {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 
-	stmtGetGameByTitleDesc, err = DB.Prepare(
-		"SELECT id, title, platform FROM game WHERE MATCH (`title`,`desc`) AGAINST (?)")
-	if err != nil {
-		panic(err.Error()) // proper error handling instead of panic in your app
-	}
-
 	stmtSelectDealsByPlatformMostViews, err = DB.Prepare(
 		"SELECT game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src " +
 			"FROM deal  " +
 			"INNER JOIN game ON deal.id = game.id AND game.platform = ?  " +
 			"LEFT JOIN metacritic ON game.title = metacritic.title " +
-			"LEFT JOIN view ON view.id = game.id " +
-			"AND game.platform = metacritic.platform  " +
+			"LEFT JOIN view ON view.id = game.id AND game.platform = metacritic.platform  " +
+			"WHERE game.region = ? AND game.lang = ? " +
 			"ORDER BY " +
 			"view.month DESC LIMIT ?")
 	if err != nil {
@@ -154,12 +149,13 @@ func SetUpDB() {
 	}
 
 	stmtSelectDealsMostViews, err = DB.Prepare(
-		"SELECT game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src " +
+		"SELECT " +
+			"game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src " +
 			"FROM deal  " +
 			"INNER JOIN game ON deal.id = game.id " +
 			"LEFT JOIN metacritic ON game.title = metacritic.title " +
-			"LEFT JOIN view ON view.id = game.id " +
-			"AND game.platform = metacritic.platform  " +
+			"LEFT JOIN view ON view.id = game.id AND game.platform = metacritic.platform  " +
+			"WHERE game.region = ? AND game.lang = ? " +
 			"ORDER BY " +
 			"view.month DESC LIMIT ?")
 	if err != nil {
@@ -171,8 +167,8 @@ func SetUpDB() {
 			"FROM deal  " +
 			"INNER JOIN game ON deal.id = game.id AND game.platform = ?  " +
 			"LEFT JOIN metacritic ON game.title = metacritic.title " +
-			"LEFT JOIN view ON view.id = game.id " +
-			"AND game.platform = metacritic.platform  " +
+			"LEFT JOIN view ON view.id = game.id AND game.platform = metacritic.platform  " +
+			"WHERE game.region = ? AND game.lang = ? " +
 			"ORDER BY " +
 			"game.release DESC LIMIT ?")
 	if err != nil {
@@ -180,18 +176,20 @@ func SetUpDB() {
 	}
 
 	stmtSelectDealsMostRecent, err = DB.Prepare(
-		"SELECT game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src " +
+		"SELECT " +
+			"game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src, game.lang, game.region " +
 			"FROM deal  " +
 			"INNER JOIN game ON deal.id = game.id " +
 			"LEFT JOIN metacritic ON game.title = metacritic.title " +
-			"LEFT JOIN view ON view.id = game.id " +
-			"AND game.platform = metacritic.platform  " +
+			"LEFT JOIN view ON view.id = game.id AND game.platform = metacritic.platform  " +
+			"WHERE game.lang = ? AND game.region = ? " +
 			"ORDER BY " +
 			"game.release DESC LIMIT ?")
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 
+	// todo: update this to use region and language. DB update needed too
 	stmtUpdateViewCountByID, err = DB.Prepare(
 		"INSERT IGNORE INTO game.view VALUES (?, 1, 1) ON DUPLICATE KEY UPDATE `month` = `month` + 1, `all` = `all` + 1")
 	if err != nil {
@@ -204,6 +202,20 @@ func SetUpDB() {
 func CloseDB() {
 	defer stmtGetTopGenreDeals.Close()
 	defer stmtGetTopPlatformDeals.Close()
+	defer stmtGetTopDealsUnder.Close()
+	defer stmtGetAllGenre.Close()
+	defer stmtGetAllPlatforms.Close()
+	defer stmtGetGameProfile.Close()
+	defer stmtGetGenreByGameID.Close()
+	defer stmtGetGenreByGameTitle.Close()
+	defer stmtGetPriceHistLast12MonthsByID.Close()
+	defer stmtGetGameByTitleDesc.Close()
+	defer stmtGetGamesByMultipleGenre.Close()
+	defer stmtSelectDealsMostViews.Close()
+	defer stmtSelectDealsByPlatformMostViews.Close()
+	defer stmtSelectDealsMostRecent.Close()
+	defer stmtSelectDealsByPlatformMostRecent.Close()
+	defer stmtUpdateViewCountByID.Close()
 }
 
 // GetGamesByGenreList notes
@@ -213,6 +225,7 @@ func GetGamesByGenreList(criteriaList []string) []GameListEntry {
 
 	// build the query string
 	// https://groups.google.com/forum/#!msg/golang-nuts/vHbg09g7s2I/RKU7XsO25SIJ
+	// todo: update for region and language
 	var params []interface{}
 	sql := "SELECT DISTINCT " +
 		"game.id, genre.title, game.platform, metacritic.score " +
@@ -276,10 +289,10 @@ func GetGenreByTitle(title string) []string {
 }
 
 // GetPriceHistLast12MonthsByID notes
-func GetPriceHistLast12MonthsByID(id string) []PriceHistoryDay {
+func GetPriceHistLast12MonthsByID(id string, lang string, region string) []PriceHistoryDay {
 	var completeHist []PriceHistoryDay
 	var priceDay PriceHistoryDay
-	rows, err := stmtGetPriceHistLast12MonthsByID.Query(id)
+	rows, err := stmtGetPriceHistLast12MonthsByID.Query(id, lang, region)
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
@@ -295,9 +308,9 @@ func GetPriceHistLast12MonthsByID(id string) []PriceHistoryDay {
 }
 
 // GetGameProfile notes
-func GetGameProfile(id string) GameProfile {
+func GetGameProfile(id string, lang string, region string) GameProfile {
 	var profile GameProfile
-	row := stmtGetGameProfile.QueryRow(id, id)
+	row := stmtGetGameProfile.QueryRow(id, id, region, lang)
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
@@ -315,7 +328,9 @@ func GetGameProfile(id string) GameProfile {
 		&profile.Developer,
 		&profile.Score,
 		&profile.URL,
-		&profile.Source); err {
+		&profile.Source,
+		&profile.Language,
+		&profile.Region); err {
 	case sql.ErrNoRows:
 		fmt.Println("No rows were returned!")
 	case nil:
@@ -325,22 +340,32 @@ func GetGameProfile(id string) GameProfile {
 	}
 
 	profile.Genres = GetGenreByTitle(profile.Title)
-	profile.PriceHist = GetPriceHistLast12MonthsByID(profile.ID)
+	profile.PriceHist = GetPriceHistLast12MonthsByID(profile.ID, profile.Language, profile.Region)
 
 	return profile
 }
 
 // GetTopDealsByGenre fillout
-func GetTopDealsByGenre(genre string, limit int) []GameListEntry {
+func GetTopDealsByGenre(genre string, lang string, region string, limit int) []GameListEntry {
 	var genreDealList []GameListEntry
 	var gameEntry GameListEntry
-	rows, err := stmtGetTopGenreDeals.Query(genre, limit)
+	rows, err := stmtGetTopGenreDeals.Query(genre, lang, region, limit)
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score, &gameEntry.ListPrice, &gameEntry.MSRP, &gameEntry.Discount, &gameEntry.Source); err != nil {
+		if err := rows.Scan(
+			&gameEntry.ID,
+			&gameEntry.Title,
+			&gameEntry.Platform,
+			&gameEntry.Score,
+			&gameEntry.ListPrice,
+			&gameEntry.MSRP,
+			&gameEntry.Discount,
+			&gameEntry.Source,
+			&gameEntry.Language,
+			&gameEntry.Region); err != nil {
 			log.Fatal(err)
 		}
 		genreDealList = append(genreDealList, gameEntry)
@@ -349,16 +374,16 @@ func GetTopDealsByGenre(genre string, limit int) []GameListEntry {
 }
 
 // GetTopDealsByPlatform fillout
-func GetTopDealsByPlatform(platform string, underprice int, limit int) []GameListEntry {
+func GetTopDealsByPlatform(platform string, underprice int, lang string, region string, limit int) []GameListEntry {
 	var genreDealList []GameListEntry
 	var gameEntry GameListEntry
-	rows, err := stmtGetTopPlatformDeals.Query(platform, underprice, limit)
+	rows, err := stmtGetTopPlatformDeals.Query(platform, underprice, lang, region, limit)
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score, &gameEntry.ListPrice, &gameEntry.MSRP, &gameEntry.Discount, &gameEntry.Source); err != nil {
+		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score, &gameEntry.ListPrice, &gameEntry.MSRP, &gameEntry.Discount, &gameEntry.Source, &gameEntry.Language, &gameEntry.Region); err != nil {
 			log.Fatal(err)
 		}
 		genreDealList = append(genreDealList, gameEntry)
@@ -367,16 +392,26 @@ func GetTopDealsByPlatform(platform string, underprice int, limit int) []GameLis
 }
 
 // GetTopDealsUnder fillout
-func GetTopDealsUnder(underprice int, limit int) []GameListEntry {
+func GetTopDealsUnder(underprice int, lang string, region string, limit int) []GameListEntry {
 	var genreDealList []GameListEntry
 	var gameEntry GameListEntry
-	rows, err := stmtGetTopDealsUnder.Query(underprice, limit)
+	rows, err := stmtGetTopDealsUnder.Query(underprice, lang, region, limit)
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score, &gameEntry.ListPrice, &gameEntry.MSRP, &gameEntry.Discount, &gameEntry.Source); err != nil {
+		if err := rows.Scan(
+			&gameEntry.ID,
+			&gameEntry.Title,
+			&gameEntry.Platform,
+			&gameEntry.Score,
+			&gameEntry.ListPrice,
+			&gameEntry.MSRP,
+			&gameEntry.Discount,
+			&gameEntry.Source,
+			&gameEntry.Language,
+			&gameEntry.Region); err != nil {
 			log.Fatal(err)
 		}
 		genreDealList = append(genreDealList, gameEntry)
@@ -424,10 +459,10 @@ func GetAllGenres() []string {
 }
 
 // GetGamesByTextSearch notes
-func GetGamesByTextSearch(value string) []SimpleGame {
+func GetGamesByTextSearch(value string, lang string, region string) []SimpleGame {
 	var games []SimpleGame
 	var game SimpleGame
-	rows, err := stmtGetGameByTitleDesc.Query(value)
+	rows, err := stmtGetGameByTitleDesc.Query(value, lang, region)
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
@@ -481,16 +516,26 @@ func SelectDealsByPlatformMostViews(platform string, limit int) []GameListEntry 
 }
 
 // SelectDealsMostRecent note
-func SelectDealsMostRecent(limit int) []GameListEntry {
+func SelectDealsMostRecent(lang string, region string, limit int) []GameListEntry {
 	var games []GameListEntry
 	var gameEntry GameListEntry
-	rows, err := stmtSelectDealsMostRecent.Query(limit)
+	rows, err := stmtSelectDealsMostRecent.Query(lang, region, limit)
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 	defer rows.Close()
 	for rows.Next() {
-		if err := rows.Scan(&gameEntry.ID, &gameEntry.Title, &gameEntry.Platform, &gameEntry.Score, &gameEntry.ListPrice, &gameEntry.MSRP, &gameEntry.Discount, &gameEntry.Source); err != nil {
+		if err := rows.Scan(
+			&gameEntry.ID,
+			&gameEntry.Title,
+			&gameEntry.Platform,
+			&gameEntry.Score,
+			&gameEntry.ListPrice,
+			&gameEntry.MSRP,
+			&gameEntry.Discount,
+			&gameEntry.Source,
+			&gameEntry.Language,
+			&gameEntry.Region); err != nil {
 			log.Fatal(err)
 		}
 		games = append(games, gameEntry)
@@ -549,22 +594,25 @@ func setWithLimits(val int, min int, max int) int {
 }
 
 // GetDealsQuery note
-func GetDealsQuery(platform string, offset int, limit int) []GameListEntry {
+func GetDealsQuery(platform string, offset int, lang string, region string, limit int) []GameListEntry {
 	var gameList []GameListEntry
 	var queryValues []interface{}
 	limit = setWithLimits(limit, 1, 120)
 	offset = setWithMin(offset, 1)
-	completequery := "SELECT game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src " +
+	completequery := "SELECT game.id, game.title, game.platform, metacritic.score, deal.list, game.msrp, deal.discount, game.src, game.lang, game.region " +
 		"FROM deal " +
 		"INNER JOIN game ON deal.id = game.id " +
 		"LEFT JOIN metacritic ON game.title = metacritic.title " +
-		"AND game.platform = metacritic.platform "
+		"AND game.platform = metacritic.platform " +
+		"WHERE game.lang = ? AND game.region = ? "
+	queryValues = append(queryValues, lang)
+	queryValues = append(queryValues, region)
 
 	// WHERE clauses
 	var whereclause string
 	var wherevalues []interface{}
 	if platform != "" {
-		whereclause += " WHERE game.platform = ? "
+		whereclause += " AND game.platform = ? "
 		wherevalues = append(wherevalues, platform)
 	}
 
@@ -583,7 +631,17 @@ func GetDealsQuery(platform string, offset int, limit int) []GameListEntry {
 	for rows.Next() {
 		var game GameListEntry
 
-		if err := rows.Scan(&game.ID, &game.Title, &game.Platform, &game.Score, &game.ListPrice, &game.MSRP, &game.Discount, &game.Source); err != nil {
+		if err := rows.Scan(
+			&game.ID,
+			&game.Title,
+			&game.Platform,
+			&game.Score,
+			&game.ListPrice,
+			&game.MSRP,
+			&game.Discount,
+			&game.Source,
+			&game.Language,
+			&game.Region); err != nil {
 			log.Fatal(err)
 		}
 

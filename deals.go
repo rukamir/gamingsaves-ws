@@ -13,6 +13,8 @@ import (
 type PriceHistoryDay struct {
 	Date      time.Time `json:"date"`
 	ListPrice float32   `json:"list"`
+	Language  string    `json:"lang"`
+	Region    string    `json:"region"`
 }
 
 // SimpleGame notes
@@ -39,6 +41,8 @@ type GameProfile struct {
 	PriceHist []PriceHistoryDay `json:"history"`
 	URL       string            `json:"url"`
 	Source    string            `json:"src"`
+	Language  string            `json:"lang"`
+	Region    string            `json:"region"`
 }
 
 // GameListEntry is a short profile of a game used to display a game in a list
@@ -51,6 +55,8 @@ type GameListEntry struct {
 	Discount  float32    `json:"discount"`
 	Score     NullInt64  `json:"score"`
 	Source    string     `json:"src"`
+	Language  string     `json:"lang"`
+	Region    string     `json:"region"`
 }
 
 // CategoryGameList hosts a genre label and the corresponding games

@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/render"
 
@@ -41,201 +40,260 @@ func main() {
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Root Called")
-		GetTopDealsByGenre("Action", 5)
+		// GetTopDealsByGenre("Action", 5)
 		w.Write([]byte("welcome"))
 	})
 
-	r.Post("/v1/game/{id}/view", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Game View increment called")
-		render.JSON(w, r, UpdateViewCountByID(chi.URLParam(r, "id")))
+	r.Route("/v1/{lang}/{region}", func(r chi.Router) {
+		r.Route("/game", func(r chi.Router) {
+			r.Get("/{id}", func(w http.ResponseWriter, r *http.Request) {
+				log.Printf("Game called")
+				// todo: return status code 4xx for not found
+				render.JSON(w, r, GetGameProfile(
+					chi.URLParam(r, "id"),
+					chi.URLParam(r, "lang"),
+					chi.URLParam(r, "region")))
+			})
+
+			r.Get("/simple-search", func(w http.ResponseWriter, r *http.Request) {
+				term := r.URL.Query().Get("value")
+				list := GetGamesByTextSearch(
+					term,
+					chi.URLParam(r, "lang"),
+					chi.URLParam(r, "region"))
+				render.JSON(w, r, list)
+			})
+		})
+
+		r.Get("/deals", func(w http.ResponseWriter, r *http.Request) {
+			term := r.URL.Query().Get("platform")
+			offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+			limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+			list := GetDealsQuery(
+				term,
+				offset,
+				chi.URLParam(r, "lang"),
+				chi.URLParam(r, "region"),
+				limit)
+
+			render.JSON(w, r, list)
+		})
+
+		r.Route("/top", func(r chi.Router) {
+			r.Route("/genre", func(r chi.Router) {
+				// todo: move this to a none /top route
+				// maybe like /available/platform
+				r.Get("/all", func(w http.ResponseWriter, r *http.Request) {
+					log.Printf("Genre Called")
+					genreList := GetAllGenres()
+					var topGamesPerGenreList []CategoryGameList
+					var gListEntry CategoryGameList
+
+					for _, val := range genreList {
+						gListEntry.Category = val
+						gListEntry.GameList = GetTopDealsByGenre(
+							val,
+							chi.URLParam(r, "lang"),
+							chi.URLParam(r, "region"),
+							10)
+						topGamesPerGenreList = append(topGamesPerGenreList, gListEntry)
+					}
+
+					render.JSON(w, r, topGamesPerGenreList)
+				})
+
+				r.Get("/picks", func(w http.ResponseWriter, r *http.Request) {
+					log.Printf("Genre Called")
+					genreList := []string{"Action", "Adventure", "Arcade", "Fighting", "First-Person", "Indie", "Platformer", "Racing", "Role-Playing", "Sports", "Strategy", "Puzzle"}
+					var topGamesPerGenreList []CategoryGameList
+					var gListEntry CategoryGameList
+
+					for _, val := range genreList {
+						gListEntry.Category = val
+						gListEntry.GameList = GetTopDealsByGenre(
+							val,
+							chi.URLParam(r, "lang"),
+							chi.URLParam(r, "region"),
+							10)
+						topGamesPerGenreList = append(topGamesPerGenreList, gListEntry)
+					}
+
+					render.JSON(w, r, topGamesPerGenreList)
+				})
+			})
+
+			r.Get("/platform", func(w http.ResponseWriter, r *http.Request) {
+				log.Printf("Top Games By Platform Under $$")
+				val := r.URL.Query().Get("value")
+				listunder, _ := strconv.Atoi(r.URL.Query().Get("listunder"))
+				if listunder == 0 {
+					listunder = 1000
+				}
+
+				render.JSON(w, r, GetTopDealsByPlatform(
+					val,
+					listunder,
+					chi.URLParam(r, "lang"),
+					chi.URLParam(r, "region"),
+					10))
+			})
+
+			// todo: move this to a none /top route
+			// maybe like /available/platform
+			r.Get("/platform/available", func(w http.ResponseWriter, r *http.Request) {
+				log.Printf("Platforms Available called")
+				platList := GetAllPlatforms()
+
+				render.JSON(w, r, platList)
+			})
+
+			r.Get("/platform/modern", func(w http.ResponseWriter, r *http.Request) {
+				log.Printf("Top Platforms called")
+				var topGamesPerPlatform []CategoryGameList
+				var platEntry CategoryGameList
+				platList := []string{"Nintendo Switch", "Xbox One", "PS4"}
+				for _, val := range platList {
+					platEntry.Category = val
+					platEntry.GameList = GetTopDealsByPlatform(
+						val,
+						10000,
+						chi.URLParam(r, "lang"),
+						chi.URLParam(r, "region"),
+						10)
+					topGamesPerPlatform = append(topGamesPerPlatform, platEntry)
+				}
+
+				render.JSON(w, r, topGamesPerPlatform)
+			})
+
+			r.Get("/platform/all", func(w http.ResponseWriter, r *http.Request) {
+				log.Printf("Top Platforms called")
+				var topGamesPerPlatform []CategoryGameList
+				var platEntry CategoryGameList
+				platList := GetAllPlatforms()
+				for _, val := range platList {
+					platEntry.Category = val
+					platEntry.GameList = GetTopDealsByPlatform(
+						val,
+						1000,
+						chi.URLParam(r, "lang"),
+						chi.URLParam(r, "region"),
+						10)
+					topGamesPerPlatform = append(topGamesPerPlatform, platEntry)
+				}
+
+				render.JSON(w, r, topGamesPerPlatform)
+			})
+
+			r.Get("/all", func(w http.ResponseWriter, r *http.Request) {
+				log.Printf("Top Games Under")
+				listunder, _ := strconv.Atoi(r.URL.Query().Get("under"))
+				if listunder == 0 {
+					listunder = 1000
+				}
+
+				render.JSON(w, r, GetTopDealsUnder(
+					listunder,
+					chi.URLParam(r, "lang"),
+					chi.URLParam(r, "region"),
+					10))
+			})
+
+			r.Get("/all/popgenre", func(w http.ResponseWriter, r *http.Request) {
+				log.Printf("Get Popular Genres lists")
+				genreList := []string{"Action", "Adventure", "Arcade", "Fighting", "First-Person", "Indie", "Platformer", "Racing", "Role-Playing", "Sports", "Strategy", "Puzzle"}
+				var topGamesPerGenreList []CategoryGameList
+				var gListEntry CategoryGameList
+
+				for _, val := range genreList {
+					gListEntry.Category = val
+					gListEntry.GameList = GetTopDealsByGenre(
+						val,
+						chi.URLParam(r, "lang"),
+						chi.URLParam(r, "region"),
+						10)
+					topGamesPerGenreList = append(topGamesPerGenreList, gListEntry)
+				}
+
+				render.JSON(w, r, topGamesPerGenreList)
+			})
+		}) // end of /top
+
+		r.Route("/recent", func(r chi.Router) {
+			r.Get("/platform", func(w http.ResponseWriter, r *http.Request) {
+				log.Printf("Most Recent Games")
+				var platform = r.URL.Query().Get("value")
+				var platList []GameListEntry
+				if platform == "" {
+					platList = SelectDealsMostRecent(
+						chi.URLParam(r, "lang"),
+						chi.URLParam(r, "region"),
+						10)
+				} else {
+					platList = SelectDealsByPlatformMostRecent(platform, 10)
+				}
+
+				render.JSON(w, r, platList)
+			})
+		})
 	})
 
-	r.Get("/v1/game/{id}", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Game called")
-		render.JSON(w, r, GetGameProfile(chi.URLParam(r, "id")))
-	})
+	// r.Post("/v1/game/{id}/view", func(w http.ResponseWriter, r *http.Request) {
+	// 	log.Printf("Game View increment called")
+	// 	render.JSON(w, r, UpdateViewCountByID(chi.URLParam(r, "id")))
+	// })
 
-	r.Get("/v1/simple-search", func(w http.ResponseWriter, r *http.Request) {
-		term := r.URL.Query().Get("value")
-		list := GetGamesByTextSearch(term)
-		// render.JSON(w, r, GetGameProfile(chi.URLParam(r, "id")))
-		render.JSON(w, r, list)
-	})
+	// r.Get("/top/genre/multi", func(w http.ResponseWriter, r *http.Request) {
+	// 	genresRaw := r.URL.Query().Get("values")
+	// 	searchList := strings.Split(genresRaw, ",")
+	// 	for _, v := range searchList {
+	// 		log.Printf("%s", v)
+	// 	}
+	// 	list := GetGamesByGenreList(searchList)
+	// 	// render.JSON(w, r, GetGameProfile(chi.URLParam(r, "id")))
+	// 	render.JSON(w, r, list)
+	// })
 
-	r.Get("/top/genre/multi", func(w http.ResponseWriter, r *http.Request) {
-		genresRaw := r.URL.Query().Get("values")
-		searchList := strings.Split(genresRaw, ",")
-		for _, v := range searchList {
-			log.Printf("%s", v)
-		}
-		list := GetGamesByGenreList(searchList)
-		// render.JSON(w, r, GetGameProfile(chi.URLParam(r, "id")))
-		render.JSON(w, r, list)
-	})
+	// r.Get("/popular", func(w http.ResponseWriter, r *http.Request) {
+	// 	log.Printf("Platforms Available called")
+	// 	platList := GetAllPlatforms()
 
-	r.Get("/top/genre/picks", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Genre Called")
-		genreList := []string{"Action", "Adventure", "Arcade", "Fighting", "First-Person", "Indie", "Platformer", "Racing", "Role-Playing", "Sports", "Strategy", "Puzzle"}
-		var topGamesPerGenreList []CategoryGameList
-		var gListEntry CategoryGameList
+	// 	render.JSON(w, r, platList)
+	// })
 
-		for _, val := range genreList {
-			gListEntry.Category = val
-			gListEntry.GameList = GetTopDealsByGenre(val, 10)
-			topGamesPerGenreList = append(topGamesPerGenreList, gListEntry)
-		}
+	// r.Get("/v1/popular", func(w http.ResponseWriter, r *http.Request) {
+	// 	log.Printf("Most Popular Games")
+	// 	var platform = r.URL.Query().Get("platform")
+	// 	var platList []GameListEntry
+	// 	if platform == "" {
+	// 		platList = SelectDealsMostViews(10)
+	// 	} else {
+	// 		platList = SelectDealsByPlatformMostViews(platform, 10)
+	// 	}
 
-		render.JSON(w, r, topGamesPerGenreList)
-	})
+	// 	render.JSON(w, r, platList)
+	// })
 
-	r.Get("/top/genre/all", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Genre Called")
-		genreList := GetAllGenres()
-		var topGamesPerGenreList []CategoryGameList
-		var gListEntry CategoryGameList
+	// r.Get("/v1/top/all/{genre}", func(w http.ResponseWriter, r *http.Request) {
+	// 	log.Printf("Genre Called")
+	// 	genre := chi.URLParam(r, "genre")
+	// 	var gListEntry []GameListEntry
 
-		for _, val := range genreList {
-			gListEntry.Category = val
-			gListEntry.GameList = GetTopDealsByGenre(val, 10)
-			topGamesPerGenreList = append(topGamesPerGenreList, gListEntry)
-		}
+	// 	gListEntry = GetTopDealsByGenre(genre, 10)
 
-		render.JSON(w, r, topGamesPerGenreList)
-	})
+	// 	render.JSON(w, r, gListEntry)
+	// })
 
-	r.Get("/top/platform", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Top Games By Platform Under $$")
-		val := r.URL.Query().Get("value")
-		listunder, _ := strconv.Atoi(r.URL.Query().Get("listunder"))
-		if listunder == 0 {
-			listunder = 1000
-		}
+	// r.Get("/v1/top/{platform}", func(w http.ResponseWriter, r *http.Request) {
+	// 	log.Printf("Top Games By Platform Under $$")
+	// 	platform := chi.URLParam(r, "platform")
+	// 	listunder, _ := strconv.Atoi(r.URL.Query().Get("under"))
+	// 	if listunder == 0 {
+	// 		listunder = 1000
+	// 	}
 
-		render.JSON(w, r, GetTopDealsByPlatform(val, listunder, 10))
-	})
-
-	r.Get("/top/platform/modern", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Top Platforms called")
-		var topGamesPerPlatform []CategoryGameList
-		var platEntry CategoryGameList
-		platList := []string{"Nintendo Switch", "Xbox One", "PS4"}
-		for _, val := range platList {
-			platEntry.Category = val
-			platEntry.GameList = GetTopDealsByPlatform(val, 10000, 10)
-			topGamesPerPlatform = append(topGamesPerPlatform, platEntry)
-		}
-
-		render.JSON(w, r, topGamesPerPlatform)
-	})
-
-	r.Get("/top/platform/all", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Top Platforms called")
-		var topGamesPerPlatform []CategoryGameList
-		var platEntry CategoryGameList
-		platList := GetAllPlatforms()
-		for _, val := range platList {
-			platEntry.Category = val
-			platEntry.GameList = GetTopDealsByPlatform(val, 1000, 10)
-			topGamesPerPlatform = append(topGamesPerPlatform, platEntry)
-		}
-
-		render.JSON(w, r, topGamesPerPlatform)
-	})
-
-	r.Get("/popular", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Platforms Available called")
-		platList := GetAllPlatforms()
-
-		render.JSON(w, r, platList)
-	})
-
-	r.Get("/v1/platform/available", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Platforms Available called")
-		platList := GetAllPlatforms()
-
-		render.JSON(w, r, platList)
-	})
-
-	r.Get("/v1/recent", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Most Recent Games")
-		var platform = r.URL.Query().Get("platform")
-		var platList []GameListEntry
-		if platform == "" {
-			platList = SelectDealsMostRecent(10)
-		} else {
-			platList = SelectDealsByPlatformMostRecent(platform, 10)
-		}
-
-		render.JSON(w, r, platList)
-	})
-
-	r.Get("/v1/popular", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Most Popular Games")
-		var platform = r.URL.Query().Get("platform")
-		var platList []GameListEntry
-		if platform == "" {
-			platList = SelectDealsMostViews(10)
-		} else {
-			platList = SelectDealsByPlatformMostViews(platform, 10)
-		}
-
-		render.JSON(w, r, platList)
-	})
-
-	r.Get("/v1/top/all", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Top Games Under")
-		listunder, _ := strconv.Atoi(r.URL.Query().Get("under"))
-		if listunder == 0 {
-			listunder = 1000
-		}
-
-		render.JSON(w, r, GetTopDealsUnder(listunder, 10))
-	})
-
-	r.Get("/v1/top/all/popgenre", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Get Popular Genres lists")
-		genreList := []string{"Action", "Adventure", "Arcade", "Fighting", "First-Person", "Indie", "Platformer", "Racing", "Role-Playing", "Sports", "Strategy", "Puzzle"}
-		var topGamesPerGenreList []CategoryGameList
-		var gListEntry CategoryGameList
-
-		for _, val := range genreList {
-			gListEntry.Category = val
-			gListEntry.GameList = GetTopDealsByGenre(val, 10)
-			topGamesPerGenreList = append(topGamesPerGenreList, gListEntry)
-		}
-
-		render.JSON(w, r, topGamesPerGenreList)
-	})
-
-	r.Get("/v1/top/all/{genre}", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Genre Called")
-		genre := chi.URLParam(r, "genre")
-		var gListEntry []GameListEntry
-
-		gListEntry = GetTopDealsByGenre(genre, 10)
-
-		render.JSON(w, r, gListEntry)
-	})
-
-	r.Get("/v1/top/{platform}", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Top Games By Platform Under $$")
-		platform := chi.URLParam(r, "platform")
-		listunder, _ := strconv.Atoi(r.URL.Query().Get("under"))
-		if listunder == 0 {
-			listunder = 1000
-		}
-
-		render.JSON(w, r, GetTopDealsByPlatform(platform, listunder, 10))
-	})
-
-	r.Get("/v1/deals", func(w http.ResponseWriter, r *http.Request) {
-		term := r.URL.Query().Get("platform")
-		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-		list := GetDealsQuery(term, offset, limit)
-
-		render.JSON(w, r, list)
-	})
+	// 	render.JSON(w, r, GetTopDealsByPlatform(platform, listunder, 10))
+	// })
 
 	// r.Get("/v1/deals", func(w http.ResponseWriter, r *http.Request) {
 	// 	log.Printf("Deals Called")
