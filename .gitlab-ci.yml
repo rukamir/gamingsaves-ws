@@ -22,6 +22,8 @@ stages:
 
 compile:
   stage: build
+  only:
+    - master
   script:
     - go get -d -v ./...
     - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/gamingsaves-ws

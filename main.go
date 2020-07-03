@@ -4,7 +4,9 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 
 	"github.com/go-chi/chi"
@@ -23,6 +25,15 @@ func main() {
 	defer CloseDB()
 
 	r := chi.NewRouter()
+
+	// middleware
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+
+	// Set a timeout value on the request context (ctx), that will signal
+	// through ctx.Done() that the request has timed out and further
+	// processing should be stopped.
+	r.Use(middleware.Timeout(60 * time.Second))
 
 	// Basic CORS
 	// for more ideas, see: https://developer.github.com/v3/#cross-origin-resource-sharing
@@ -79,6 +90,7 @@ func main() {
 			render.JSON(w, r, list)
 		})
 
+		// /top retrieves games in order by MC score
 		r.Route("/top", func(r chi.Router) {
 			r.Route("/genre", func(r chi.Router) {
 				// todo: move this to a none /top route
@@ -122,6 +134,22 @@ func main() {
 				})
 			})
 
+			r.Get("/{platform}", func(w http.ResponseWriter, r *http.Request) {
+				log.Printf("Top Games By Platform Under $$")
+				platform := chi.URLParam(r, "platform")
+				listunder, _ := strconv.Atoi(r.URL.Query().Get("under"))
+				if listunder == 0 {
+					listunder = 1000
+				}
+
+				render.JSON(w, r, GetTopDealsByPlatform(
+					platform,
+					listunder,
+					chi.URLParam(r, "lang"),
+					chi.URLParam(r, "region"),
+					10))
+			})
+
 			r.Get("/platform", func(w http.ResponseWriter, r *http.Request) {
 				log.Printf("Top Games By Platform Under $$")
 				val := r.URL.Query().Get("value")
@@ -136,15 +164,6 @@ func main() {
 					chi.URLParam(r, "lang"),
 					chi.URLParam(r, "region"),
 					10))
-			})
-
-			// todo: move this to a none /top route
-			// maybe like /available/platform
-			r.Get("/platform/available", func(w http.ResponseWriter, r *http.Request) {
-				log.Printf("Platforms Available called")
-				platList := GetAllPlatforms()
-
-				render.JSON(w, r, platList)
 			})
 
 			r.Get("/platform/modern", func(w http.ResponseWriter, r *http.Request) {
@@ -220,9 +239,9 @@ func main() {
 		}) // end of /top
 
 		r.Route("/recent", func(r chi.Router) {
-			r.Get("/platform", func(w http.ResponseWriter, r *http.Request) {
+			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 				log.Printf("Most Recent Games")
-				var platform = r.URL.Query().Get("value")
+				var platform = r.URL.Query().Get("platform")
 				var platList []GameListEntry
 				if platform == "" {
 					platList = SelectDealsMostRecent(
@@ -230,8 +249,41 @@ func main() {
 						chi.URLParam(r, "region"),
 						10)
 				} else {
-					platList = SelectDealsByPlatformMostRecent(platform, 10)
+					platList = SelectDealsByPlatformMostRecent(
+						platform,
+						chi.URLParam(r, "lang"),
+						chi.URLParam(r, "region"),
+						10)
 				}
+
+				render.JSON(w, r, platList)
+			})
+		})
+
+		r.Get("/popular", func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("Most Popular Games")
+			var platform = r.URL.Query().Get("platform")
+			var platList []GameListEntry
+			if platform == "" {
+				platList = SelectDealsMostViews(
+					chi.URLParam(r, "lang"),
+					chi.URLParam(r, "region"),
+					10)
+			} else {
+				platList = SelectDealsByPlatformMostViews(
+					platform,
+					chi.URLParam(r, "lang"),
+					chi.URLParam(r, "region"),
+					10)
+			}
+
+			render.JSON(w, r, platList)
+		})
+
+		r.Route("/available", func(r chi.Router) {
+			r.Get("/platform", func(w http.ResponseWriter, r *http.Request) {
+				log.Printf("Platforms Available called")
+				platList := GetAllPlatforms()
 
 				render.JSON(w, r, platList)
 			})
@@ -261,19 +313,6 @@ func main() {
 	// 	render.JSON(w, r, platList)
 	// })
 
-	// r.Get("/v1/popular", func(w http.ResponseWriter, r *http.Request) {
-	// 	log.Printf("Most Popular Games")
-	// 	var platform = r.URL.Query().Get("platform")
-	// 	var platList []GameListEntry
-	// 	if platform == "" {
-	// 		platList = SelectDealsMostViews(10)
-	// 	} else {
-	// 		platList = SelectDealsByPlatformMostViews(platform, 10)
-	// 	}
-
-	// 	render.JSON(w, r, platList)
-	// })
-
 	// r.Get("/v1/top/all/{genre}", func(w http.ResponseWriter, r *http.Request) {
 	// 	log.Printf("Genre Called")
 	// 	genre := chi.URLParam(r, "genre")
@@ -282,17 +321,6 @@ func main() {
 	// 	gListEntry = GetTopDealsByGenre(genre, 10)
 
 	// 	render.JSON(w, r, gListEntry)
-	// })
-
-	// r.Get("/v1/top/{platform}", func(w http.ResponseWriter, r *http.Request) {
-	// 	log.Printf("Top Games By Platform Under $$")
-	// 	platform := chi.URLParam(r, "platform")
-	// 	listunder, _ := strconv.Atoi(r.URL.Query().Get("under"))
-	// 	if listunder == 0 {
-	// 		listunder = 1000
-	// 	}
-
-	// 	render.JSON(w, r, GetTopDealsByPlatform(platform, listunder, 10))
 	// })
 
 	// r.Get("/v1/deals", func(w http.ResponseWriter, r *http.Request) {
