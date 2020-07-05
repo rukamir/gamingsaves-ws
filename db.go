@@ -83,7 +83,7 @@ func SetUpDB() {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
 
-	stmtGetAllPlatforms, err = DB.Prepare("SELECT distinct game.platform FROM deal LEFT JOIN game ON deal.id = game.id")
+	stmtGetAllPlatforms, err = DB.Prepare("SELECT distinct game.platform FROM deal LEFT JOIN game ON deal.id = game.id WHERE game.platform IS NOT NULL")
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
